@@ -1,0 +1,5 @@
+(library
+ (name swara_scribe)
+ (libraries cairo2)
+ (preprocess
+  (pps ppx_deriving.show)))
