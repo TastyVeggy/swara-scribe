@@ -13,6 +13,9 @@ module Token = struct
     | LSQUAREBRACKET (* notating insrument *)
     | RSQUAREBRACKET (* notating instrument *)
     | INSTRUMENT_TEXT of string
+    | LCURLYBRACKET (* matra marking for lyrics*)
+    | RCURLYBRACKET (* matra marking for lyrics*)
+    | LYRICS of string
     | EOF
 
   let pp fmt t =
@@ -28,13 +31,16 @@ module Token = struct
     | LSQUAREBRACKET -> Format.fprintf fmt "LSQUAREBRACKET"
     | RSQUAREBRACKET -> Format.fprintf fmt "RSQUAREBRACKET"
     | INSTRUMENT_TEXT s -> Format.fprintf fmt "INSTRUMENT_TEXT (%s)" s
+    | LCURLYBRACKET -> Format.fprintf fmt "LCURLYBRACKET"
+    | RCURLYBRACKET -> Format.fprintf fmt "RCURLYBRACKET"
+    | LYRICS s -> Format.fprintf fmt "LYRICS (%s)" s
     | EOF -> Format.fprintf fmt "EOF"
 end
 
 module Error = struct
   type t =
     | Unexpected_char of char * position
-    | Unclosed_square_bracket of position
+    | Unclosed_bracket of char * position
 
   let pp fmt e =
     match e with
@@ -42,9 +48,9 @@ module Error = struct
         Format.fprintf fmt
           "Lexing error: Line %d, Character %d: '%c' is an invalid symbol."
           p.line p.column c
-    | Unclosed_square_bracket p ->
-        Format.fprintf fmt "Lexing error: Line %d: Unclosed square bracket."
-          p.line
+    | Unclosed_bracket (c, p) ->
+        Format.fprintf fmt
+          "Lexing error: Line %d: Unclosed bracket. Looking for %c" p.line c
 end
 
 let notes = "SRGMPDNrgmdn"
@@ -54,18 +60,19 @@ let lex (source : string) : (Token.t list, Error.t) result =
 
   let advance pos = { pos with column = pos.column + 1 } in
   let newline pos = { line = pos.line + 1; column = 1 } in
-  let rec read_instrument (i : int) (pos : position) (acc_buf : Buffer.t) :
-      (string * int * position, Error.t) result =
-    if i >= len then Error (Error.Unclosed_square_bracket pos)
+  let rec read_text (i : int) (pos : position) (close_symbol : char)
+      (acc_buf : Buffer.t) : (string * int * position, Error.t) result =
+    if i >= len then Error (Error.Unclosed_bracket (close_symbol, pos))
     else
       match source.[i] with
-      | ']' -> Ok (Buffer.contents acc_buf, i + 1, advance pos)
+      | c when c = close_symbol ->
+          Ok (Buffer.contents acc_buf, i + 1, advance pos)
       | '\n' as c ->
           Buffer.add_char acc_buf c;
-          read_instrument (i + 1) (newline pos) acc_buf
+          read_text (i + 1) (newline pos) close_symbol acc_buf
       | c ->
           Buffer.add_char acc_buf c;
-          read_instrument (i + 1) (advance pos) acc_buf
+          read_text (i + 1) (advance pos) close_symbol acc_buf
   in
 
   let rec lex_ i pos acc =
@@ -74,9 +81,14 @@ let lex (source : string) : (Token.t list, Error.t) result =
       match source.[i] with
       | '\t' -> lex_ (i + 1) (advance pos) acc
       | '[' -> (
-          match read_instrument (i + 1) (advance pos) (Buffer.create 16) with
+          match read_text (i + 1) (advance pos) ']' (Buffer.create 16) with
           | Ok (text, next_i, next_pos) ->
               lex_ next_i next_pos (Token.INSTRUMENT_TEXT text :: acc)
+          | Error e -> Error e)
+      | '{' -> (
+          match read_text (i + 1) (advance pos) '}' (Buffer.create 16) with
+          | Ok (text, next_i, next_pos) ->
+              lex_ next_i next_pos (Token.LYRICS text :: acc)
           | Error e -> Error e)
       | c when String.contains notes c ->
           lex_ (i + 1) (advance pos) (Token.LETTER c :: acc)

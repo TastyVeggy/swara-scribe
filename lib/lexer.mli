@@ -13,6 +13,9 @@ module Token : sig
     | LSQUAREBRACKET
     | RSQUAREBRACKET
     | INSTRUMENT_TEXT of string
+    | LCURLYBRACKET
+    | RCURLYBRACKET
+    | LYRICS of string
     | EOF
 
   val pp : Format.formatter -> t -> unit

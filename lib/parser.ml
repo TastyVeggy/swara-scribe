@@ -186,6 +186,11 @@ let parse : Token.t list -> (Ast.t, Error.t) result =
     | NEWLINE :: rest -> parse_ (Next_Part :: acc) inst_set None rest
     | BARLINE :: rest -> parse_ (Barline :: acc) inst_set curr_inst rest
     | WHITESPACE :: rest -> parse_ acc inst_set curr_inst rest
+    | LYRICS t :: rest ->
+        parse_
+          (Matra_Part { symbols = [ Symbol.Lyrics t ]; instrument = curr_inst }
+          :: acc)
+          inst_set curr_inst rest
     | ts ->
         let* symbols, rest' = parse_matra_part ts in
         parse_

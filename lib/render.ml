@@ -21,6 +21,14 @@ let draw_music_symbol_centered (cr : Cairo.context) (c : char) (pos : position)
   move_to cr x_centered y_centered;
   show_text cr text
 
+let draw_text_centered (cr : Cairo.context) (s : string) (pos : position) =
+  set_font_size cr Layout.text_size;
+  let ext = text_extents cr s in
+  let x_centered = pos.x -. (ext.width /. 2.) -. ext.x_bearing in
+  let y_centered = pos.y -. (ext.height /. 2.) -. ext.y_bearing in
+  move_to cr x_centered y_centered;
+  show_text cr s
+
 let draw_music_symbol (cr : Cairo.context) (s : Layout_Tree.symbol) : unit =
   match s.symbol with
   | Swaram (c, octave) -> (
@@ -40,6 +48,7 @@ let draw_music_symbol (cr : Cairo.context) (s : Layout_Tree.symbol) : unit =
       | None -> ())
   | Rest -> draw_music_symbol_centered cr ',' s.centre
   | Sustain -> draw_music_symbol_centered cr '-' s.centre
+  | Lyrics t -> draw_text_centered cr t s.centre
 
 let draw_barline (cr : Cairo.context) (barline : Layout_Tree.barline) =
   let y1 = barline.centre.y -. (barline.height /. 2.) in

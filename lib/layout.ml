@@ -25,7 +25,7 @@ let barno_x_offset_from_line_start = 0. *. scale_x
 
 (* vertical spacing *)
 let barline_height = 0.04 *. scale_y
-let line_y_padding = 1.5 *. barline_height
+let line_y_padding = 2.0 *. barline_height
 let part_y_padding = 0.5 *. barline_height
 let barno_y_offset_from_line_centre = 0.9 *. barline_height
 
@@ -102,12 +102,24 @@ let layout_element (pos : position) (no_of_parts : int) :
       let elems, height = layout_barlines [] pos.y no_of_parts in
       { elements = elems; width = 0.; height }
   | Ast.Matra matra ->
-      let max_symbols =
-        List.fold_left
-          (fun acc (mp : Ir.matra_part) -> max acc (List.length mp.symbols))
-          0 matra
+      let calc_width ~offset = function
+        | [ Symbol.Lyrics s ] ->
+            float_of_int (max (String.length s + offset) 0) *. text_width
+        | symbols ->
+            float_of_int (max (List.length symbols + offset) 0) *. note_width
       in
-      let matra_width = float_of_int max_symbols *. note_width in
+      let matra_width =
+        List.fold_left
+          (fun acc (mp : Ir.matra_part) ->
+            max acc (calc_width ~offset:0 mp.symbols))
+          0. matra
+      in
+      let advance_width =
+        List.fold_left
+          (fun acc (mp : Ir.matra_part) ->
+            max acc (calc_width ~offset:(-1) mp.symbols))
+          0. matra
+      in
 
       let rec layout_matra acc inner_y = function
         | [] -> (List.rev acc, inner_y)
@@ -120,11 +132,7 @@ let layout_element (pos : position) (no_of_parts : int) :
               rest
       in
       let elems, height = layout_matra [] pos.y matra in
-      {
-        elements = elems;
-        width = max (float_of_int (max_symbols - 1)) 0. *. note_width;
-        height;
-      }
+      { elements = elems; width = advance_width; height }
 
 let find_x_padding (left : Ast.element) (right : Ast.element) : float =
   if left = Ast.Barline || right = Ast.Barline then barline_x_padding

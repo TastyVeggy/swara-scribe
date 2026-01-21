@@ -35,6 +35,7 @@ Within a part:
 
 * A part can optionally be prefixed with `[<INSTRUMENT>]` to indicate the instrument assigned to play that part.  
 * **Whitespace** is used to demarcate matras as well as barlines.  
+    * But for lyrics, `{` `}` are used to demarcate matras (because lyrics may contain whitespace). Whitespace between matras of lyrics is not necessary but can help with readability
 * `|` indicates a **barline**.  
 * **Note**:
     * The number of matras across parts within a line should match
@@ -46,17 +47,26 @@ Within a matra:
 * `-` indicates **sustenance** of the previous note.  
 * `.` indicates a **rest** (renders as `,`).
 * **Note**: 
-    * The engine calculates the **maximum space required** for each matra across all parts and **centers the notes** accordingly.
+    * The engine calculates the **maximum space required** for each matra across all parts and **centers the notes/lyrics** accordingly.
+
 
  
 ### Example
 Raw swara scribe input: 
 ```
-[Keys] G'S'R'. R'nS'. S'Dn. . | . ..DG P.PR G.MR
-[Violin] . . ...S Dn.n | PD.D GP.. . .
+[Female Lyrics] {Ja} {gat} {man} {ga} | {lam} . . . | {Vish} {wa} {man} {ga} | {lam} . . .
+[Female Vocal] S'.G'S' S'... ..S'. ..D, | S'... . . . | G.P. P.S'n ...D .P.. | P... . . .
+[Male Lyrics] . . . . | {Ja} {gat} {man} {ga} | {lam} . . . | {Vish} {wa} {man} {ga}
+[Male Vocal] . . . . | G'.S'. S'... ..S'. ..D. | S'... . . . | G.P. P.S'n ...D .P..
+[Keys] D... . . . | G'... SS.. ..n. ..D. | S.G. P.G. S.G. P.G. | G... P.S. n..D .P..
+[Violin] G'... S'S'.. ..n. ..D. | S'... . . . | G... P.S. n..D .P.. | P... . . .
+[Veena] .SS. .SS. .SS. .SS. | .SS. .SS. .SS. .SS. | .SS. .SS. .SS. .SS. | .SS. .SS. .SS. .SS.
 
-. . G.GM .G.. | P.PR' .R'P. R'..P .R..
-[Veena] S.SS' .S'M. GGGM .G.. | P.PR' .R'G'. R'..G' .R..
+[Male Lyrics] {lam} {Vishwam} . . | {Mata} {ram} . .
+[Male Vocal] P... G.P. . . | n.DP G... . .
+[Keys] . . G'G'G'm' G'... | n.DP .G.. . .
+[Violin] G... P... . . | n.DP .G.. . .
+[Veena] S.SS .SS. S.SS .SS. | P.PP .PP. n.DP .G..
 ```
 
 Rendered score:
@@ -67,7 +77,7 @@ Rendered score:
 * [ ] Ability to choose to only render one instrument part
     * [ ] Ability to mark important parts within each line, then when in 'single-instrument' mode there will be an option to display these important parts
     * [ ] Make the other parts or other important parts differentiated from the selected instrument part such as through highlighting, sizing (most complex) or coloring of text
-* [ ] Lyrics for vocal
+* [X] Lyrics for vocal
 * [ ] Gamakas
 * [ ] Option to set bar number for line (to allow skipping)
 * [ ] Allow for text at the top of each matra and top left of each line

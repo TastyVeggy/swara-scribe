@@ -1,5 +1,14 @@
-[Keys] G'S'R'. R'nS'. S'Dn. . | . ..DG P.PR G.MR
-[Violin] . . ...S Dn.n | PD.D GP.. . .
+[Female Lyrics] {Ja} {gat} {man} {ga} | {lam} . . . | {Vish} {wa} {man} {ga} | {lam} . . .
+[Female Vocal] S'.G'S' S'... ..S'. ..D. | S'... . . . | G.P. P.S'n ...D .P.. | P... . . .
+[Male Lyrics] . . . . | {Ja} {gat} {man} {ga} | {lam} . . . | {Vish} {wa} {man} {ga}
+[Male Vocal] . . . . | G'.S'. S'... ..S'. ..D. | S'... . . . | G.P. P.S'n ...D .P..
+[Keys] D... . . . | G'... SS.. ..n. ..D. | S.G. P.G. S.G. P.G. | G... P.S. n..D .P..
+[Violin] G'... S'S'.. ..n. ..D. | S'... . . . | G... P.S. n..D .P.. | P... . . .
+[Veena] .SS. .SS. .SS. .SS. | .SS. .SS. .SS. .SS. | .SS. .SS. .SS. .SS. | .SS. .SS. .SS. .SS.
 
-. . G.GM .G.. | P.PR' .R'P. R'..P .R..
-[Veena] S.SS' .S'M. GGGM .G.. | P.PR' .R'G'. R'..G' .R..
+[Male Lyrics] {lam} {Vishwam} . . | {Mata} {ram} . .
+[Male Vocal] P... G.P. . . | n.DP G... . .
+[Keys] . . G'G'G'm' G'... | n.DP .G.. . .
+[Violin] G... P... . . | n.DP .G.. . .
+[Veena] S.SS .SS. S.SS .SS. | P.PP .PP. n.DP .G..
+
