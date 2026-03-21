@@ -8,8 +8,14 @@ let dot_radius = 0.003 *. Layout.scale_y
 let dot_offset_below = 0.019 *. Layout.scale_y
 let dot_offset_above = 0.019 *. Layout.scale_y
 let bar_no_text_size = Layout.text_size *. 0.7
+let grey = (0.5, 0.5, 0.5)
+let black = (0., 0., 0.)
 
 type position = Layout_Tree.position
+
+let set_colour (cr : Cairo.context) (is_emphasised : bool) =
+  let r, g, b = if is_emphasised then black else grey in
+  set_source_rgb cr r g b
 
 let draw_music_symbol_centered (cr : Cairo.context) (c : char) (pos : position)
     =
@@ -30,6 +36,7 @@ let draw_text_centered (cr : Cairo.context) (s : string) (pos : position) =
   show_text cr s
 
 let draw_music_symbol (cr : Cairo.context) (s : Layout_Tree.symbol) : unit =
+  set_colour cr s.is_emphasised;
   match s.symbol with
   | Swaram (c, octave) -> (
       draw_music_symbol_centered cr c s.centre;
@@ -51,6 +58,7 @@ let draw_music_symbol (cr : Cairo.context) (s : Layout_Tree.symbol) : unit =
   | Lyrics t -> draw_text_centered cr t s.centre
 
 let draw_barline (cr : Cairo.context) (barline : Layout_Tree.barline) =
+  set_colour cr barline.is_emphasised;
   let y1 = barline.centre.y -. (barline.height /. 2.) in
   let y2 = barline.centre.y +. (barline.height /. 2.) in
   move_to cr barline.centre.x y1;
@@ -59,6 +67,7 @@ let draw_barline (cr : Cairo.context) (barline : Layout_Tree.barline) =
 
 let draw_instrumentation (cr : Cairo.context)
     (instrument : Layout_Tree.instrument) =
+  set_colour cr instrument.is_emphasised;
   set_font_size cr Layout.text_size;
   let ext = text_extents cr instrument.text in
   let y = instrument.right.y -. (ext.height /. 2.) -. ext.y_bearing in
@@ -67,6 +76,7 @@ let draw_instrumentation (cr : Cairo.context)
   show_text cr instrument.text
 
 let draw_bar_no (cr : Cairo.context) (bar_no_elem : Layout_Tree.bar_no) =
+  set_colour cr true;
   set_font_size cr bar_no_text_size;
   let ext = text_extents cr bar_no_elem.text in
   let y = bar_no_elem.centre.y -. (ext.height /. 2.) -. ext.y_bearing in

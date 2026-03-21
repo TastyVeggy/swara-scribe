@@ -10,21 +10,27 @@ Many of its design decisions are as a result of keeping the scope to what I actu
 ## Getting started
 ### Installation
 
-You will need OCaml and opam.
+You will need OCaml and opam. 
 
 ```
 opam install . --deps-only
 dune build
+dune install
 ```
-
 
 ### Usage
+Note that if the following commands do not work, replace `scribe` with `dune exec scribe --` within the commands
 
 ```
-dune exec ./bin/main.exe example/test.txt
+scribe example/test.txt
 ```
 
 The rendered score `example/test.pdf` will be generated.
+
+Example command to render a score with the violin parts made prominent:
+```
+scribe example/test.txt --main-instrument "Violin"
+```
 
 
 ## Swara scribe syntax
@@ -48,8 +54,6 @@ Within a matra:
 * `.` indicates a **rest** (renders as `,`).
 * **Note**: 
     * The engine calculates the **maximum space required** for each matra across all parts and **centers the notes/lyrics** accordingly.
-
-
  
 ### Example
 Raw swara scribe input: 
@@ -69,14 +73,14 @@ Raw swara scribe input:
 [Veena] S.SS .SS. S.SS .SS. | P.PP .PP. n.DP .G..
 ```
 
-Rendered snippet:
+Rendered snippet with violin part being emphasised:
 ![Rendered snippet](./example/test.png)
 
 
 ## Future plans
 * [ ] Ability to choose to only render one instrument part
     * [ ] Ability to mark important parts within each line, then when in 'single-instrument' mode there will be an option to display these important parts
-    * [ ] Make the other parts or other important parts differentiated from the selected instrument part such as through highlighting, sizing (most complex) or coloring of text
+    * [X] Make the other parts or other important parts differentiated from the selected instrument part such as through highlighting, sizing (most complex) or coloring of text
 * [X] Lyrics for vocal
 * [ ] Gamakas
 * [ ] Option to set bar number for line (to allow skipping)

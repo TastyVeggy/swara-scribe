@@ -1,4 +1,4 @@
 (executable
- (public_name swara_scribe)
+ (public_name scribe)
  (name main)
  (libraries swara_scribe))

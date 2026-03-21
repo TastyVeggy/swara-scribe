@@ -1,1 +1,1 @@
-val engrave : string -> unit
+val engrave : string -> string option -> unit
