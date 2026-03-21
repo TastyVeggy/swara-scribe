@@ -1,7 +1,7 @@
 open Ir
 
 let unit_width = 1240.
-let unit_height = 1754.
+let unit_height = unit_width *. Float.sqrt 2.
 let scale = 1.
 let scale_y = scale *. unit_height
 let scale_x = scale *. unit_width
@@ -14,7 +14,7 @@ let bottom_margin_y = 0.05 *. scale_y
 
 (* sizing *)
 let text_size = 0.03 *. scale_y
-let text_width = 0.6 *. text_size (* courier monospace *)
+let text_width = 0.6 *. text_size
 
 (* horizontal spacing *)
 let matra_x_padding = 0.06 *. scale_x
@@ -171,6 +171,67 @@ let layout_line (pos : position) (line : Ast.line) =
     elements = bar_no_elem :: (instrument_elems @ line_layout.elements);
   }
 
+let line_block_height (no_of_parts : int) : float =
+  (float_of_int no_of_parts *. barline_height)
+  +. (float_of_int (no_of_parts - 1) *. part_y_padding)
+
+let shift_elements_y (dy : float) (elems : Layout_Tree.element list) :
+    Layout_Tree.element list =
+  let sp (p : Layout_Tree.position) = { p with y = p.y +. dy } in
+  List.map
+    (function
+      | Layout_Tree.LSymbol s ->
+          Layout_Tree.LSymbol { s with centre = sp s.centre }
+      | Layout_Tree.LBarline b ->
+          Layout_Tree.LBarline { b with centre = sp b.centre }
+      | Layout_Tree.LInstrument i ->
+          Layout_Tree.LInstrument { i with right = sp i.right }
+      | Layout_Tree.LBarno n ->
+          Layout_Tree.LBarno { n with centre = sp n.centre })
+    elems
+
+type pre_line = {
+  pl_elements : Layout_Tree.element list;
+  pl_width : float;
+  pl_block_h : float;
+}
+
+type pager = {
+  done_pages : Layout_Tree.t;
+  cur_elements : Layout_Tree.element list; (*reversed order*)
+  cur_width : float;
+  cur_y : float;
+}
+
+let make_pager () : pager =
+  { done_pages = []; cur_elements = []; cur_width = 0.; cur_y = top_margin_y }
+
+let close_page (page_width : float) (page_height : float) (p : pager) : pager =
+  let page : Layout_Tree.page =
+    {
+      content = List.rev p.cur_elements;
+      width = page_width;
+      height = page_height;
+    }
+  in
+  {
+    done_pages = page :: p.done_pages;
+    cur_elements = [];
+    cur_width = 0.;
+    cur_y = top_margin_y;
+  }
+
+let finish_pager (page_width : float) (page_height : float) (p : pager) :
+    Layout_Tree.t =
+  let last : Layout_Tree.page =
+    {
+      width = page_width;
+      height = page_height;
+      content = List.rev p.cur_elements;
+    }
+  in
+  List.rev (last :: p.done_pages)
+
 let layout (score : Ast.t) : Layout_Tree.t =
   let longest_inst =
     List.fold_left
@@ -181,32 +242,89 @@ let layout (score : Ast.t) : Layout_Tree.t =
     if longest_inst = 0 then 0.
     else (float_of_int longest_inst *. text_width) +. instrument_x_padding
   in
-  let rec layout_ acc pos = function
-    | [] -> { acc with elements = List.rev acc.elements }
-    | (line : Ast.line) :: rest ->
-        let layout_res = layout_line pos line in
-        let y_next =
-          pos.y
-          +. (float_of_int line.no_of_parts *. barline_height)
-          +. (float_of_int (line.no_of_parts - 1) *. part_y_padding)
-          +. line_y_padding
-        in
-        layout_
-          {
-            elements = layout_res.elements @ acc.elements;
-            width = max layout_res.width acc.width;
-            height = max layout_res.height acc.height;
-          }
-          { pos with y = y_next } rest
-  in
-  let layout_res =
-    layout_
-      { elements = []; width = left_margin_x; height = top_margin_y }
-      { x = left_margin_x +. inst_margin; y = top_margin_y }
-      score.content
-  in
-  {
-    content = layout_res.elements;
-    width = layout_res.width +. right_margin_x;
-    height = layout_res.height +. bottom_margin_y;
-  }
+  match score.content with
+  | [] ->
+      [
+        {
+          Layout_Tree.width = left_margin_x +. right_margin_x;
+          height = (left_margin_x +. right_margin_x) *. Float.sqrt 2.;
+          content = [];
+        };
+      ]
+  | _ ->
+      (*lay out every line at top_margin_y to find max width*)
+      let dummy_pos =
+        { Layout_Tree.x = left_margin_x +. inst_margin; y = top_margin_y }
+      in
+      let pre_lines =
+        List.map
+          (fun (line : Ast.line) ->
+            let lr = layout_line dummy_pos line in
+            {
+              pl_elements = lr.elements;
+              pl_width = lr.width;
+              pl_block_h = line_block_height line.no_of_parts;
+            })
+          score.content
+      in
+      let max_content_w =
+        List.fold_left (fun acc pl -> max acc pl.pl_width) 0. pre_lines
+      in
+      let page_width = max_content_w +. right_margin_x in
+      let page_height = page_width *. Float.sqrt 2. in
+
+      (* Distribution of lines across pages *)
+      let rec go (p : pager) = function
+        | [] -> finish_pager page_width page_height p
+        | (pl : pre_line) :: rest ->
+            let p =
+              if
+                p.cur_y +. pl.pl_block_h +. bottom_margin_y > page_height
+                && p.cur_y > top_margin_y
+              then close_page page_width page_height p
+              else p
+            in
+            let dy = p.cur_y -. top_margin_y in
+            let elems =
+              if dy = 0. then pl.pl_elements
+              else shift_elements_y dy pl.pl_elements
+            in
+            go
+              {
+                p with
+                cur_elements = elems @ p.cur_elements;
+                cur_width = max pl.pl_width p.cur_width;
+                cur_y = p.cur_y +. pl.pl_block_h +. line_y_padding;
+              }
+              rest
+      in
+      go (make_pager ()) pre_lines
+
+(*   | [] -> { acc with elements = List.rev acc.elements } *)
+(*   | (line : Ast.line) :: rest -> *)
+(*       let layout_res = layout_line pos line in *)
+(*       let y_next = *)
+(*         pos.y *)
+(*         +. (float_of_int line.no_of_parts *. barline_height) *)
+(*         +. (float_of_int (line.no_of_parts - 1) *. part_y_padding) *)
+(*         +. line_y_padding *)
+(*       in *)
+(*       layout_ *)
+(*         { *)
+(*           elements = layout_res.elements @ acc.elements; *)
+(*           width = max layout_res.width acc.width; *)
+(*           height = max layout_res.height acc.height; *)
+(*         } *)
+(*         { pos with y = y_next } rest *)
+(* in *)
+(* let layout_res = *)
+(*   layout_ *)
+(*     { elements = []; width = left_margin_x; height = top_margin_y } *)
+(*     { x = left_margin_x +. inst_margin; y = top_margin_y } *)
+(*     score.content *)
+(* in *)
+(* { *)
+(*   content = layout_res.elements; *)
+(*   width = layout_res.width +. right_margin_x; *)
+(*   height = layout_res.height +. bottom_margin_y; *)
+(* } *)

@@ -3,6 +3,9 @@ opam-version: "2.0"
 synopsis: "Sargam notation engine"
 description:
   "Lightweight, CLI-based notation engine designed to render Indian Classical (Sargam) music scores from plain-text files"
+maintainer: ["TastyVeggy"]
+authors: ["TastyVeggy"]
+license: "MIT"
 homepage: "https://github.com/TastyVeggy/swara-scribe"
 bug-reports: "https://github.com/TastyVeggy/swara-scribe/issues"
 depends: [

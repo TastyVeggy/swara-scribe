@@ -9,11 +9,9 @@ let process (filename : string) : (unit, error) result =
     Parser.parse tokens |> Result.map_error (fun e -> Parse_error e)
   in
   let layout = Layout.layout score in
-  let _ =
-    Render.generate_score_png
-      (Printf.sprintf "%s.png" (Filename.remove_extension filename))
-      layout
-  in
+  Render.generate_score_pdf
+    (Printf.sprintf "%s.pdf" (Filename.remove_extension filename))
+    layout;
   Ok ()
 
 let engrave (filename : string) : unit =
@@ -23,4 +21,4 @@ let engrave (filename : string) : unit =
     | Error (Lex_error e) -> Format.asprintf "%a" Lexer.Error.pp e
     | Error (Parse_error e) -> Format.asprintf "%a" Parser.Error.pp e
   in
-  Printf.printf "%s" message
+  Printf.printf "%s\n" message

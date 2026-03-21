@@ -4,6 +4,12 @@
 
 (generate_opam_files true)
 
+(authors "TastyVeggy")
+
+(maintainers "TastyVeggy")
+
+(license MIT)
+
 (source
  (github TastyVeggy/swara-scribe))
 

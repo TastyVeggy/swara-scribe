@@ -90,24 +90,20 @@ let rec draw_score (ctx : Cairo.context) : Layout_Tree.element list -> unit =
       draw_bar_no (ctx : context) bar_no_elem;
       draw_score ctx rest
 
-let generate_score_png (filename : string) (layout : Layout_Tree.t) =
-  let width = ceil layout.width in
-  let height = ceil layout.height in
-
-  let surface =
-    Cairo.Image.create Cairo.Image.ARGB32 ~w:(int_of_float width)
-      ~h:(int_of_float height)
-  in
-  let cr = Cairo.create surface in
-
-  set_source_rgb cr 1. 1. 1.;
-  paint cr;
-
-  select_font_face cr "Courier";
-  set_font_size cr note_size;
-
-  set_source_rgb cr 0. 0. 0.;
-  draw_score cr layout.content;
-
-  Cairo.PNG.write surface filename;
-  Cairo.Surface.finish surface
+let generate_score_pdf (filename : string) (pages : Layout_Tree.t) =
+  match pages with
+  | [] -> ()
+  | first :: _ ->
+      let surface = Cairo.PDF.create filename ~w:first.width ~h:first.height in
+      let cr = Cairo.create surface in
+      (* select_font_face cr "Courier"; *)
+      List.iter
+        (fun (page : Layout_Tree.page) ->
+          Cairo.PDF.set_size surface ~w:page.width ~h:page.height;
+          set_source_rgb cr 1. 1. 1.;
+          paint cr;
+          set_source_rgb cr 0. 0. 0.;
+          draw_score cr page.content;
+          Cairo.Surface.show_page surface)
+        pages;
+      Cairo.Surface.finish surface

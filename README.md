@@ -24,7 +24,7 @@ dune build
 dune exec ./bin/main.exe example/test.txt
 ```
 
-The rendered score `example/test.png` will be generated.
+The rendered score `example/test.pdf` will be generated.
 
 
 ## Swara scribe syntax
@@ -69,8 +69,8 @@ Raw swara scribe input:
 [Veena] S.SS .SS. S.SS .SS. | P.PP .PP. n.DP .G..
 ```
 
-Rendered score:
-![Rendered score](./example/test.png)
+Rendered snippet:
+![Rendered snippet](./example/test.png)
 
 
 ## Future plans

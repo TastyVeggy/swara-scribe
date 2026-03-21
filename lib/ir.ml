@@ -36,6 +36,7 @@ module Ast = struct
   [@@deriving show]
 end
 
+(* this is per page *)
 module Layout_Tree = struct
   type position = { x : float; y : float } [@@deriving show]
   type symbol = { symbol : Symbol.t; centre : position } [@@deriving show]
@@ -50,6 +51,8 @@ module Layout_Tree = struct
     | LBarno of bar_no
   [@@deriving show]
 
-  type t = { width : float; height : float; content : element list }
+  type page = { content : element list; width : float; height : float }
   [@@deriving show]
+
+  type t = page list [@@deriving show]
 end
