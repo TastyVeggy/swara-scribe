@@ -20,18 +20,20 @@ dune install
 
 ### Usage
 Note that if the following commands do not work, replace `scribe` with `dune exec scribe --` within the commands
+```
+Usage: scribe [--main-instrument <name>] [--show-bar-no] <file>
+  --main-instrument  <name>  Highlight this instrument part (others rendered in grey)
+  --show-bar-no  Show bar numbers (default: off)
+  --font <name> Font for score (Make sure your system has the font installed)
+```
 
+
+#### Example
 ```
 scribe example/test.txt
 ```
 
 The rendered score `example/test.pdf` will be generated.
-
-Example command to render a score with the violin parts made prominent:
-```
-scribe example/test.txt --main-instrument "Violin"
-```
-
 
 ## Swara scribe syntax
 * A **newline** indicates a new instrumental part for the same line.  
@@ -73,7 +75,8 @@ Raw swara scribe input:
 [Veena] S.SS .SS. S.SS .SS. | P.PP .PP. n.DP .G..
 ```
 
-Rendered snippet with violin part being emphasised:
+Rendered snippet via `scribe example/test.txt --main-instrument "Violin" --show-bar-no --font "JetBrainsMono Nerd Font"`:
+
 ![Rendered snippet](./example/test.png)
 
 

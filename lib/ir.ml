@@ -40,16 +40,32 @@ end
 module Layout_Tree = struct
   type position = { x : float; y : float } [@@deriving show]
 
-  type symbol = { symbol : Symbol.t; centre : position; is_emphasised : bool }
+  (*y at baseline, x at left of symbol*)
+  type symbol = {
+    symbol : Symbol.t;
+    baseline_left : position;
+    is_emphasised : bool;
+  }
   [@@deriving show]
 
-  type barline = { height : float; centre : position; is_emphasised : bool }
+  (*y at baseline, x at middle*)
+  type barline = {
+    height : float;
+    baseline_mid : position;
+    is_emphasised : bool;
+  }
   [@@deriving show]
 
-  type instrument = { text : string; right : position; is_emphasised : bool }
+  (*y at baseline, x at right of text*)
+  type instrument = {
+    text : string;
+    baseline_right : position;
+    is_emphasised : bool;
+  }
   [@@deriving show]
 
-  type bar_no = { text : string; centre : position } [@@deriving show]
+  (*y at baseline, x at left of barno*)
+  type bar_no = { text : string; baseline_left : position } [@@deriving show]
 
   type element =
     | LSymbol of symbol

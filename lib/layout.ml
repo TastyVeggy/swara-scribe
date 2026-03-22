@@ -20,14 +20,26 @@ let text_width = 0.6 *. text_size
 let matra_x_padding = 0.06 *. scale_x
 let barline_x_padding = 0.04 *. scale_x
 let instrument_x_padding = 0.04 *. scale_x
-let note_width = 0.033 *. scale_x
 let barno_x_offset_from_line_start = 0. *. scale_x
 
 (* vertical spacing *)
 let barline_height = 0.04 *. scale_y
-let line_y_padding = 2.0 *. barline_height
+let barno_y_vspace = 0.05 *. barline_height
+let line_y_padding_without_barno = 1.5 *. barline_height
 let part_y_padding = 0.5 *. barline_height
-let barno_y_offset_from_line_centre = 0.9 *. barline_height
+let barno_y_offset_from_line_top = 0.01 *. scale_x
+let note_size = 1.2 *. scale_y *. 0.03
+
+(** Measure note_size once at startup. Unfortunate *)
+let note_width, note_ascent =
+  let surface = Cairo.Image.create Cairo.Image.ARGB32 ~w:1 ~h:1 in
+  let cr = Cairo.create surface in
+  Cairo.select_font_face cr "Courier";
+  Cairo.set_font_size cr note_size;
+  let te = Cairo.text_extents cr "S" in
+  let fe = Cairo.font_extents cr in
+  Cairo.Surface.finish surface;
+  (te.Cairo.x_advance, fe.Cairo.ascent)
 
 type position = Layout_Tree.position
 
@@ -38,7 +50,9 @@ let part_emphasised (main_instrument : string option)
   | Some h -> (
       match instrument with Some i -> String.equal h i | None -> false)
 
-(* extract the ordered list of instrument names from the first Matra in the line. Assumes ast is such taht every matra in a line has the same parts in the same order, so the first one is representative*)
+(* extract the ordered list of instrument names from the first Matra in the
+   line. Assumes ast is such taht every matra in a line has the same parts in
+the same order, so the first one is representative*)
 let line_part_instruments (content : Ast.element list) : string option list =
   match List.find_opt (function Ast.Matra _ -> true | _ -> false) content with
   | Some (Ast.Matra matra) ->
@@ -64,7 +78,8 @@ let layout_instrumentation (pos : position) (elems : Ast.element list)
                 (Layout_Tree.LInstrument
                    {
                      text;
-                     right = { x = pos.x -. instrument_x_padding; y = inner_y };
+                     baseline_right =
+                       { x = pos.x -. instrument_x_padding; y = inner_y };
                      is_emphasised;
                    }
                 :: acc)
@@ -77,9 +92,9 @@ let layout_instrumentation (pos : position) (elems : Ast.element list)
 
 let layout_bar_number (pos : position) (bar_no : int) : Layout_Tree.element =
   let text = string_of_int bar_no in
-  let y = pos.y -. barno_y_offset_from_line_centre in
+  let y = pos.y -. note_ascent -. barno_y_offset_from_line_top in
   let x = pos.x -. barno_x_offset_from_line_start in
-  Layout_Tree.LBarno { text; centre = { x; y } }
+  Layout_Tree.LBarno { text; baseline_left = { x; y } }
 
 type layout_result = {
   elements : Layout_Tree.element list;
@@ -95,7 +110,11 @@ let layout_matra_part (pos : position) (matra_width : float)
     | c :: rest ->
         let elem =
           Layout_Tree.LSymbol
-            { symbol = c; centre = { pos with x = inner_x }; is_emphasised }
+            {
+              symbol = c;
+              baseline_left = { pos with x = inner_x };
+              is_emphasised;
+            }
         in
         layout_matra_part_ (elem :: acc) (inner_x +. note_width) rest
   in
@@ -108,15 +127,21 @@ let layout_matra_part (pos : position) (matra_width : float)
 let layout_element (pos : position) (part_instruments : string option list)
     (main_instrument : string option) : Ast.element -> layout_result = function
   | Ast.Barline ->
+      (* x: shift right by half the right-side padding so the barline sits
+         visually centred in the gap between the two matras *)
+      let barline_x = pos.x +. (barline_x_padding /. 2.) in
       let rec layout_barlines acc inner_y = function
         | [] -> (List.rev acc, inner_y)
         | instrument :: rest ->
             let is_emphasised = part_emphasised main_instrument instrument in
+            (* inner_y is the baseline of this part row. so to make the 
+               barline centered vertically, must ascent it*)
+            let centre_y = inner_y -. (note_ascent /. 2.) in
             layout_barlines
               (Layout_Tree.LBarline
                  {
                    height = barline_height;
-                   centre = { pos with y = inner_y };
+                   baseline_mid = { x = barline_x; y = centre_y };
                    is_emphasised;
                  }
               :: acc)
@@ -144,7 +169,6 @@ let layout_element (pos : position) (part_instruments : string option list)
             max acc (calc_width ~offset:(-1) mp.symbols))
           0. matra
       in
-
       let rec layout_matra acc inner_y = function
         | [] -> (List.rev acc, inner_y)
         | matra_part :: rest ->
@@ -214,13 +238,14 @@ let shift_elements_y (dy : float) (elems : Layout_Tree.element list) :
   List.map
     (function
       | Layout_Tree.LSymbol s ->
-          Layout_Tree.LSymbol { s with centre = sp s.centre }
+          Layout_Tree.LSymbol { s with baseline_left = sp s.baseline_left }
       | Layout_Tree.LBarline b ->
-          Layout_Tree.LBarline { b with centre = sp b.centre }
+          Layout_Tree.LBarline { b with baseline_mid = sp b.baseline_mid }
       | Layout_Tree.LInstrument i ->
-          Layout_Tree.LInstrument { i with right = sp i.right }
+          Layout_Tree.LInstrument
+            { i with baseline_right = sp i.baseline_right }
       | Layout_Tree.LBarno n ->
-          Layout_Tree.LBarno { n with centre = sp n.centre })
+          Layout_Tree.LBarno { n with baseline_left = sp n.baseline_left })
     elems
 
 type pre_line = {
@@ -265,7 +290,8 @@ let finish_pager (page_width : float) (page_height : float) (p : pager) :
   in
   List.rev (last :: p.done_pages)
 
-let layout (score : Ast.t) (main_instrument : string option) : Layout_Tree.t =
+let layout (score : Ast.t) (main_instrument : string option)
+    (show_bar_no : bool) : Layout_Tree.t =
   let longest_inst =
     List.fold_left
       (fun acc inst -> max acc (String.length inst))
@@ -305,9 +331,12 @@ let layout (score : Ast.t) (main_instrument : string option) : Layout_Tree.t =
       in
       let page_width = max_content_w +. right_margin_x in
       let page_height = page_width *. Float.sqrt 2. in
-
+      let line_y_padding =
+        if show_bar_no then line_y_padding_without_barno +. barno_y_vspace
+        else line_y_padding_without_barno
+      in
       (* Distribution of lines across pages *)
-      let rec go (p : pager) = function
+      let rec layout_ (p : pager) = function
         | [] -> finish_pager page_width page_height p
         | (pl : pre_line) :: rest ->
             let p =
@@ -322,7 +351,7 @@ let layout (score : Ast.t) (main_instrument : string option) : Layout_Tree.t =
               if dy = 0. then pl.pl_elements
               else shift_elements_y dy pl.pl_elements
             in
-            go
+            layout_
               {
                 p with
                 cur_elements = elems @ p.cur_elements;
@@ -331,4 +360,4 @@ let layout (score : Ast.t) (main_instrument : string option) : Layout_Tree.t =
               }
               rest
       in
-      go (make_pager ()) pre_lines
+      layout_ (make_pager ()) pre_lines
