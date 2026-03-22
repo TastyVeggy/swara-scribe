@@ -79,37 +79,59 @@ let draw_bar_no (cr : Cairo.context) (bar_no_elem : Layout_Tree.bar_no) =
   move_to cr x bar_no_elem.baseline_left.y;
   show_text cr bar_no_elem.text
 
-let rec draw_score (cr : Cairo.context) (show_bar_no : bool) :
-    Layout_Tree.element list -> unit = function
+let draw_title (cr : Cairo.context) (t : Layout_Tree.title) =
+  set_source_rgb cr 0. 0. 0.;
+  set_font_size cr Layout.title_size;
+  let ext = text_extents cr t.text in
+  let x = t.baseline_mid.x -. (ext.width /. 2.) -. ext.x_bearing in
+  move_to cr x t.baseline_mid.y;
+  show_text cr t.text
+
+let draw_page_no (cr : Cairo.context) (p : Layout_Tree.page_no) =
+  set_source_rgb cr 0. 0. 0.;
+  set_font_size cr Layout.page_no_size;
+  let ext = text_extents cr p.text in
+  let x = p.baseline_mid.x -. (ext.width /. 2.) -. ext.x_bearing in
+  move_to cr x p.baseline_mid.y;
+  show_text cr p.text
+
+let rec draw_score (cr : Cairo.context) : Layout_Tree.element list -> unit =
+  function
   | [] -> ()
   | LSymbol s :: rest ->
       draw_music_symbol cr s;
-      draw_score cr show_bar_no rest
+      draw_score cr rest
   | LBarline b :: rest ->
       draw_barline cr b;
-      draw_score cr show_bar_no rest
+      draw_score cr rest
   | LInstrument inst :: rest ->
       draw_instrumentation cr inst;
-      draw_score cr show_bar_no rest
+      draw_score cr rest
   | LBarno bar_no_elem :: rest ->
-      if show_bar_no then draw_bar_no cr bar_no_elem;
-      draw_score cr show_bar_no rest
+      draw_bar_no cr bar_no_elem;
+      draw_score cr rest
+  | LTitle t :: rest ->
+      draw_title cr t;
+      draw_score cr rest
+  | LPageNo p :: rest ->
+      draw_page_no cr p;
+      draw_score cr rest
 
 let generate_score_pdf (filename : string) (pages : Layout_Tree.t)
-    (show_bar_no : bool) (font : string) =
+    (config : Config.config) =
   match pages with
   | [] -> ()
   | first :: _ ->
       let surface = Cairo.PDF.create filename ~w:first.width ~h:first.height in
       let cr = Cairo.create surface in
-      select_font_face cr font;
+      select_font_face cr config.font;
       List.iter
         (fun (page : Layout_Tree.page) ->
           Cairo.PDF.set_size surface ~w:page.width ~h:page.height;
           set_source_rgb cr 1. 1. 1.;
           paint cr;
           set_source_rgb cr 0. 0. 0.;
-          draw_score cr show_bar_no page.content;
+          draw_score cr page.content;
           Cairo.Surface.show_page surface)
         pages;
       Cairo.Surface.finish surface

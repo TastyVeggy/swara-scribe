@@ -1,1 +1,1 @@
-val engrave : string -> string option -> bool -> string -> unit
+val engrave : string -> Config.config -> unit

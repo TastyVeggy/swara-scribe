@@ -20,13 +20,14 @@ dune install
 
 ### Usage
 Note that if the following commands do not work, replace `scribe` with `dune exec scribe --` within the commands
+
 ```
 Usage: scribe [--main-instrument <name>] [--show-bar-no] <file>
   --main-instrument  <name>  Highlight this instrument part (others rendered in grey)
   --show-bar-no  Show bar numbers (default: off)
-  --font <name> Font for score (Make sure your system has the font installed)
+  --font <name> Font for score
+  --title <name> Title of the piece
 ```
-
 
 #### Example
 ```

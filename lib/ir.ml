@@ -66,12 +66,16 @@ module Layout_Tree = struct
 
   (*y at baseline, x at left of barno*)
   type bar_no = { text : string; baseline_left : position } [@@deriving show]
+  type title = { text : string; baseline_mid : position } [@@deriving show]
+  type page_no = { text : string; baseline_mid : position } [@@deriving show]
 
   type element =
     | LSymbol of symbol
     | LBarline of barline
     | LInstrument of instrument
     | LBarno of bar_no
+    | LTitle of title
+    | LPageNo of page_no
   [@@deriving show]
 
   type page = { content : element list; width : float; height : float }

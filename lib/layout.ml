@@ -15,6 +15,8 @@ let bottom_margin_y = 0.05 *. scale_y
 (* sizing *)
 let text_size = 0.03 *. scale_y
 let text_width = 0.6 *. text_size
+let page_no_size = text_size
+let title_size = 0.06 *. scale_y
 
 (* horizontal spacing *)
 let matra_x_padding = 0.06 *. scale_x
@@ -29,6 +31,7 @@ let line_y_padding_without_barno = 1.5 *. barline_height
 let part_y_padding = 0.5 *. barline_height
 let barno_y_offset_from_line_top = 0.01 *. scale_x
 let note_size = 1.2 *. scale_y *. 0.03
+let title_padding_bottom = 0.02 *. scale_y
 
 (** Measure note_size once at startup. Unfortunate *)
 let note_width, note_ascent =
@@ -191,7 +194,7 @@ let find_x_padding (left : Ast.element) (right : Ast.element) : float =
   else matra_x_padding
 
 let layout_line (pos : position) (line : Ast.line)
-    (main_instrument : string option) =
+    (main_instrument : string option) (show_bar_no : bool) =
   let bar_no_elem = layout_bar_number pos line.starting_bar_no in
   let instrument_elems =
     layout_instrumentation pos line.content main_instrument
@@ -225,7 +228,10 @@ let layout_line (pos : position) (line : Ast.line)
   in
   {
     line_layout with
-    elements = bar_no_elem :: (instrument_elems @ line_layout.elements);
+    elements =
+      (if show_bar_no then
+         bar_no_elem :: (instrument_elems @ line_layout.elements)
+       else instrument_elems @ line_layout.elements);
   }
 
 let line_block_height (no_of_parts : int) : float =
@@ -235,17 +241,23 @@ let line_block_height (no_of_parts : int) : float =
 let shift_elements_y (dy : float) (elems : Layout_Tree.element list) :
     Layout_Tree.element list =
   let sp (p : Layout_Tree.position) = { p with y = p.y +. dy } in
-  List.map
+  List.filter_map
     (function
       | Layout_Tree.LSymbol s ->
-          Layout_Tree.LSymbol { s with baseline_left = sp s.baseline_left }
+          Some
+            (Layout_Tree.LSymbol { s with baseline_left = sp s.baseline_left })
       | Layout_Tree.LBarline b ->
-          Layout_Tree.LBarline { b with baseline_mid = sp b.baseline_mid }
+          Some
+            (Layout_Tree.LBarline { b with baseline_mid = sp b.baseline_mid })
       | Layout_Tree.LInstrument i ->
-          Layout_Tree.LInstrument
-            { i with baseline_right = sp i.baseline_right }
+          Some
+            (Layout_Tree.LInstrument
+               { i with baseline_right = sp i.baseline_right })
       | Layout_Tree.LBarno n ->
-          Layout_Tree.LBarno { n with baseline_left = sp n.baseline_left })
+          Some
+            (Layout_Tree.LBarno { n with baseline_left = sp n.baseline_left })
+      | Layout_Tree.LPageNo _ -> None
+      | Layout_Tree.LTitle _ -> None)
     elems
 
 type pre_line = {
@@ -261,37 +273,24 @@ type pager = {
   cur_y : float;
 }
 
-let make_pager () : pager =
-  { done_pages = []; cur_elements = []; cur_width = 0.; cur_y = top_margin_y }
+let make_pager (start_y : float) : pager =
+  { done_pages = []; cur_elements = []; cur_width = 0.; cur_y = start_y }
 
-let close_page (page_width : float) (page_height : float) (p : pager) : pager =
-  let page : Layout_Tree.page =
-    {
-      content = List.rev p.cur_elements;
-      width = page_width;
-      height = page_height;
-    }
-  in
-  {
-    done_pages = page :: p.done_pages;
-    cur_elements = [];
-    cur_width = 0.;
-    cur_y = top_margin_y;
-  }
+let layout_page_no (page_no : int) (page_width : float) (page_height : float) :
+    Layout_Tree.element =
+  let text = string_of_int page_no in
+  let x = page_width /. 2. in
+  let y = page_height -. (bottom_margin_y /. 2.) in
+  Layout_Tree.LPageNo { text; baseline_mid = { x; y } }
 
-let finish_pager (page_width : float) (page_height : float) (p : pager) :
-    Layout_Tree.t =
-  let last : Layout_Tree.page =
-    {
-      width = page_width;
-      height = page_height;
-      content = List.rev p.cur_elements;
-    }
-  in
-  List.rev (last :: p.done_pages)
+let layout_title (title : string) (page_width : float) :
+    Layout_Tree.element * float =
+  let x = page_width /. 2. in
+  let y = top_margin_y in
+  let elem = Layout_Tree.LTitle { text = title; baseline_mid = { x; y } } in
+  (elem, y +. title_size +. title_padding_bottom)
 
-let layout (score : Ast.t) (main_instrument : string option)
-    (show_bar_no : bool) : Layout_Tree.t =
+let layout (score : Ast.t) (config : Config.config) : Layout_Tree.t =
   let longest_inst =
     List.fold_left
       (fun acc inst -> max acc (String.length inst))
@@ -311,14 +310,17 @@ let layout (score : Ast.t) (main_instrument : string option)
         };
       ]
   | _ ->
-      (*lay out every line at top_margin_y to find max width*)
+      (*lay out every line to find max width*)
       let dummy_pos =
-        { Layout_Tree.x = left_margin_x +. inst_margin; y = top_margin_y }
+        { Layout_Tree.x = left_margin_x +. inst_margin; y = 0. }
       in
       let pre_lines =
         List.map
           (fun (line : Ast.line) ->
-            let lr = layout_line dummy_pos line main_instrument in
+            let lr =
+              layout_line dummy_pos line config.main_instrument
+                config.show_bar_no
+            in
             {
               pl_elements = lr.elements;
               pl_width = lr.width;
@@ -331,22 +333,76 @@ let layout (score : Ast.t) (main_instrument : string option)
       in
       let page_width = max_content_w +. right_margin_x in
       let page_height = page_width *. Float.sqrt 2. in
+
+      let title_elem, first_page_start_y =
+        match config.title with
+        | None -> (None, top_margin_y)
+        | Some t ->
+            let elem, start_y = layout_title t page_width in
+            (Some elem, start_y)
+      in
+
+      let add_page_no (page_no : int) (elems : Layout_Tree.element list) =
+        layout_page_no page_no page_width page_height :: elems
+      in
+
       let line_y_padding =
-        if show_bar_no then line_y_padding_without_barno +. barno_y_vspace
+        if config.show_bar_no then
+          line_y_padding_without_barno +. barno_y_vspace
         else line_y_padding_without_barno
       in
       (* Distribution of lines across pages *)
-      let rec layout_ (p : pager) = function
-        | [] -> finish_pager page_width page_height p
-        | (pl : pre_line) :: rest ->
-            let p =
-              if
-                p.cur_y +. pl.pl_block_h +. bottom_margin_y > page_height
-                && p.cur_y > top_margin_y
-              then close_page page_width page_height p
-              else p
+      let rec layout_ (p : pager) (page_no : int) (is_first : bool) = function
+        | [] ->
+            let final_elems = add_page_no page_no p.cur_elements in
+            let final_elems =
+              if is_first then
+                match title_elem with
+                | None -> final_elems
+                | Some t -> t :: final_elems
+              else final_elems
             in
-            let dy = p.cur_y -. top_margin_y in
+            let last : Layout_Tree.page =
+              {
+                width = page_width;
+                height = page_height;
+                content = List.rev final_elems;
+              }
+            in
+            List.rev (last :: p.done_pages)
+        | (pl : pre_line) :: rest ->
+            let needs_new_page =
+              p.cur_y +. pl.pl_block_h +. bottom_margin_y > page_height
+            in
+            let p, page_no, is_first =
+              if needs_new_page then
+                let close_elems = add_page_no page_no p.cur_elements in
+                let close_elems =
+                  if is_first then
+                    match title_elem with
+                    | None -> close_elems
+                    | Some t -> t :: close_elems
+                  else close_elems
+                in
+                let page : Layout_Tree.page =
+                  {
+                    width = page_width;
+                    height = page_height;
+                    content = List.rev close_elems;
+                  }
+                in
+                let p =
+                  {
+                    done_pages = page :: p.done_pages;
+                    cur_elements = [];
+                    cur_width = 0.;
+                    cur_y = top_margin_y;
+                  }
+                in
+                (p, page_no + 1, false)
+              else (p, page_no, is_first)
+            in
+            let dy = p.cur_y in
             let elems =
               if dy = 0. then pl.pl_elements
               else shift_elements_y dy pl.pl_elements
@@ -358,6 +414,6 @@ let layout (score : Ast.t) (main_instrument : string option)
                 cur_width = max pl.pl_width p.cur_width;
                 cur_y = p.cur_y +. pl.pl_block_h +. line_y_padding;
               }
-              rest
+              page_no is_first rest
       in
-      layout_ (make_pager ()) pre_lines
+      layout_ (make_pager first_page_start_y) 1 true pre_lines
