@@ -1,5 +1,6 @@
 %{
-  open Ir
+open Ast
+open Types
 %}
 
 %token <char>   LETTER
@@ -21,19 +22,19 @@ elements:
 
 element:
   | i = INSTRUMENT_TEXT
-      { [ Ast.Instrument i ] }
+      { [ Instrument i ] }
   | NEWLINE NEWLINE
-      { [ Ast.Newline ] }
+      { [ Newline ] }
   | NEWLINE
-      { [ Ast.Next_Part ] }
+      { [ Next_Part ] }
   | BARLINE
-      { [ Ast.Barline ] }
+      { [ Barline ] }
   | WHITESPACE
       { [] }
   | s = LYRICS
-      { [ Ast.Matra_Part { symbols = [ Symbol.Lyrics s ]; instrument = None } ] }
+      { [ Matra_Part { symbols = [ Symbol.Lyrics s ]; instrument = None } ] }
   | mp = matra_part
-      { [ Ast.Matra_Part { symbols = mp; instrument = None } ] }
+      { [ Matra_Part { symbols = mp; instrument = None } ] }
 
 matra_part:
   | s = symbol { [ s ] }

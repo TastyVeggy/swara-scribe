@@ -1,11 +1,23 @@
-open Ir
-
 let ( let* ) = Result.bind
 
 module Elab = struct
   type part = Ast.element list
   type line = part list
 end
+
+type matra = Types.matra_part list [@@deriving show]
+type element = Matra of matra | Barline [@@deriving show]
+
+type line = {
+  starting_bar_no : int;
+  no_of_bars : int;
+  no_of_parts : int;
+  content : element list;
+}
+[@@deriving show]
+
+type t = { content : line list; instrumentation : string list }
+[@@deriving show]
 
 module Error = struct
   type t =
@@ -25,9 +37,8 @@ module Error = struct
 
   let pp fmt = function
     | Matra_Count_Inconsistency { part_index; expected; got } ->
-        Format.fprintf fmt
-          "Synchronise error: part %d has %d matras but expected %d" part_index
-          got expected
+        Format.fprintf fmt "Score error: part %d has %d matras but expected %d"
+          part_index got expected
     | Barline_Mismatch { column_index; part_had_barline } ->
         let part_strs =
           List.mapi
@@ -37,9 +48,8 @@ module Error = struct
             part_had_barline
           |> String.concat ", "
         in
-        Format.fprintf fmt
-          "Synchronise error: barline mismatch at column %d — %s" column_index
-          part_strs
+        Format.fprintf fmt "Score error: barline mismatch at column %d — %s"
+          column_index part_strs
     | Length_Mismatch { part_index = _; exhausted } ->
         let part_strs =
           List.mapi
@@ -49,11 +59,10 @@ module Error = struct
             exhausted
           |> String.concat ", "
         in
-        Format.fprintf fmt
-          "Synchronise error: length mismatch across parts — %s" part_strs
+        Format.fprintf fmt "Score error: length mismatch across parts — %s"
+          part_strs
     | Invalid_Structural_Alignment { column_index; got } ->
-        Format.fprintf fmt
-          "Synchronise error: expected matra at column %d but got %a"
+        Format.fprintf fmt "Score error: expected matra at column %d but got %a"
           column_index Ast.pp_element got
     | Inconsistent_Instrumentation { part_index; first_seen; conflicting } ->
         let pp_inst = function
@@ -61,8 +70,8 @@ module Error = struct
           | Some s -> Printf.sprintf "\"%s\"" s
         in
         Format.fprintf fmt
-          "Synchronise error: part %d has inconsistent instrumentation — first \
-           saw %s, then saw %s"
+          "Score error: part %d has inconsistent instrumentation — first saw \
+           %s, then saw %s"
           part_index (pp_inst first_seen) (pp_inst conflicting)
 end
 
@@ -142,7 +151,7 @@ let extract_line (ast : Ast.t) : (Elab.line * Ast.t, Error.t) result =
   extract_line_ [] [] None 0 None 0 ast
 
 let synchronise_line (line : Elab.line) (starting_bar_no : int) :
-    (Score.line, Error.t) result =
+    (line, Error.t) result =
   let rec synchronise_line_ acc no_of_bars col_index heads_and_tails =
     let exhausted =
       List.map (function [] -> true | _ -> false) heads_and_tails
@@ -166,8 +175,8 @@ let synchronise_line (line : Elab.line) (starting_bar_no : int) :
       let all_barline = List.for_all (fun x -> x) barline_flags in
       if has_barline then
         if all_barline then
-          synchronise_line_ (Score.Barline :: acc) (no_of_bars + 1)
-            (col_index + 1) next_tails
+          synchronise_line_ (Barline :: acc) (no_of_bars + 1) (col_index + 1)
+            next_tails
         else
           Error
             (Error.Barline_Mismatch
@@ -184,18 +193,11 @@ let synchronise_line (line : Elab.line) (starting_bar_no : int) :
           Util.sequence_results
             (List.map (extract_matra col_index) current_column)
         in
-        synchronise_line_
-          (Score.Matra matras :: acc)
-          no_of_bars (col_index + 1) next_tails
+        synchronise_line_ (Matra matras :: acc) no_of_bars (col_index + 1)
+          next_tails
   in
   let* content, no_of_bars = synchronise_line_ [] 1 0 line in
-  Ok
-    {
-      Score.no_of_parts = List.length line;
-      Score.content;
-      Score.starting_bar_no;
-      Score.no_of_bars;
-    }
+  Ok { no_of_parts = List.length line; content; starting_bar_no; no_of_bars }
 
 let remove_trailing (ast : Ast.t) : Ast.t =
   let is_trailing = function
@@ -209,17 +211,17 @@ let remove_trailing (ast : Ast.t) : Ast.t =
   in
   ast |> List.rev |> drop is_trailing |> List.rev
 
-let synchronise (raw_ast : Ast.t) : (Score.t, Error.t) result =
+let of_ast (raw_ast : Ast.t) : (t, Error.t) result =
   let stamped, instrumentation = stamp_instruments raw_ast in
   let trimmed = remove_trailing stamped in
   let rec synchronise_line_ acc bar_no ast =
     match ast with
-    | [] -> Ok { Score.content = List.rev acc; Score.instrumentation }
+    | [] -> Ok { content = List.rev acc; instrumentation }
     | _ ->
         let* line, rest = extract_line ast in
         let* sync_line = synchronise_line line bar_no in
         synchronise_line_ (sync_line :: acc)
-          (sync_line.Score.starting_bar_no + sync_line.Score.no_of_bars)
+          (sync_line.starting_bar_no + sync_line.no_of_bars)
           rest
   in
   synchronise_line_ [] 1 trimmed

@@ -1,4 +1,4 @@
-open Ir
+open Types
 
 let unit_width = 1240.
 let unit_height = unit_width *. Float.sqrt 2.
@@ -33,6 +33,47 @@ let barno_y_offset_from_line_top = 0.01 *. scale_x
 let note_size = 1.2 *. scale_y *. 0.03
 let title_padding_bottom = 0.02 *. scale_y
 
+type position = { x : float; y : float } [@@deriving show]
+
+(*y at baseline, x at left of symbol*)
+type symbol = {
+  symbol : Symbol.t;
+  baseline_left : position;
+  is_emphasised : bool;
+}
+[@@deriving show]
+
+(*y at baseline, x at middle*)
+type barline = { height : float; baseline_mid : position; is_emphasised : bool }
+[@@deriving show]
+
+(*y at baseline, x at right of text*)
+type instrument = {
+  text : string;
+  baseline_right : position;
+  is_emphasised : bool;
+}
+[@@deriving show]
+
+(*y at baseline, x at left of barno*)
+type bar_no = { text : string; baseline_left : position } [@@deriving show]
+type title = { text : string; baseline_mid : position } [@@deriving show]
+type page_no = { text : string; baseline_mid : position } [@@deriving show]
+
+type element =
+  | LSymbol of symbol
+  | LBarline of barline
+  | LInstrument of instrument
+  | LBarno of bar_no
+  | LTitle of title
+  | LPageNo of page_no
+[@@deriving show]
+
+type page = { content : element list; width : float; height : float }
+[@@deriving show]
+
+type t = page list [@@deriving show]
+
 (** Measure note_size once at startup. Unfortunate *)
 let note_width, note_ascent =
   let surface = Cairo.Image.create Cairo.Image.ARGB32 ~w:1 ~h:1 in
@@ -43,8 +84,6 @@ let note_width, note_ascent =
   let fe = Cairo.font_extents cr in
   Cairo.Surface.finish surface;
   (te.Cairo.x_advance, fe.Cairo.ascent)
-
-type position = Layout_Tree.position
 
 let part_emphasised (main_instrument : string option)
     (instrument : string option) : bool =
@@ -61,18 +100,18 @@ let line_part_instruments (content : Score.element list) : string option list =
     List.find_opt (function Score.Matra _ -> true | _ -> false) content
   with
   | Some (Score.Matra matra) ->
-      List.map (fun (mp : Ir.matra_part) -> mp.instrument) matra
+      List.map (fun (mp : matra_part) -> mp.instrument) matra
   | _ -> []
 
 let layout_instrumentation (pos : position) (elems : Score.element list)
-    (main_instrument : string option) : Layout_Tree.element list =
+    (main_instrument : string option) : element list =
   let rec layout_instrumentation_ = function
     | [] -> []
     | Score.Barline :: rest -> layout_instrumentation_ rest
     | Score.Matra matra :: _ ->
         let rec loop acc inner_y = function
           | [] -> List.rev acc
-          | (matra_part : Ir.matra_part) :: rest ->
+          | (matra_part : matra_part) :: rest ->
               let text =
                 match matra_part.instrument with None -> "" | Some s -> s
               in
@@ -80,7 +119,7 @@ let layout_instrumentation (pos : position) (elems : Score.element list)
                 part_emphasised main_instrument matra_part.instrument
               in
               loop
-                (Layout_Tree.LInstrument
+                (LInstrument
                    {
                      text;
                      baseline_right =
@@ -95,26 +134,21 @@ let layout_instrumentation (pos : position) (elems : Score.element list)
   in
   layout_instrumentation_ elems
 
-let layout_bar_number (pos : position) (bar_no : int) : Layout_Tree.element =
+let layout_bar_number (pos : position) (bar_no : int) : element =
   let text = string_of_int bar_no in
   let y = pos.y -. note_ascent -. barno_y_offset_from_line_top in
   let x = pos.x -. barno_x_offset_from_line_start in
-  Layout_Tree.LBarno { text; baseline_left = { x; y } }
+  LBarno { text; baseline_left = { x; y } }
 
-type layout_result = {
-  elements : Layout_Tree.element list;
-  width : float;
-  height : float;
-}
+type layout_result = { elements : element list; width : float; height : float }
 
 let layout_matra_part (pos : position) (matra_width : float)
-    (matra_part : matra_part) (is_emphasised : bool) : Layout_Tree.element list
-    =
+    (matra_part : matra_part) (is_emphasised : bool) : element list =
   let rec layout_matra_part_ acc inner_x = function
     | [] -> List.rev acc
     | c :: rest ->
         let elem =
-          Layout_Tree.LSymbol
+          LSymbol
             {
               symbol = c;
               baseline_left = { pos with x = inner_x };
@@ -144,7 +178,7 @@ let layout_element (pos : position) (part_instruments : string option list)
                barline centered vertically, must ascent it*)
             let centre_y = inner_y -. (note_ascent /. 2.) in
             layout_barlines
-              (Layout_Tree.LBarline
+              (LBarline
                  {
                    height = barline_height;
                    baseline_mid = { x = barline_x; y = centre_y };
@@ -165,13 +199,13 @@ let layout_element (pos : position) (part_instruments : string option list)
       in
       let matra_width =
         List.fold_left
-          (fun acc (mp : Ir.matra_part) ->
+          (fun acc (mp : matra_part) ->
             max acc (calc_width ~offset:0 mp.symbols))
           0. matra
       in
       let advance_width =
         List.fold_left
-          (fun acc (mp : Ir.matra_part) ->
+          (fun acc (mp : matra_part) ->
             max acc (calc_width ~offset:(-1) mp.symbols))
           0. matra
       in
@@ -241,37 +275,30 @@ let line_block_height (no_of_parts : int) : float =
   (float_of_int no_of_parts *. barline_height)
   +. (float_of_int (no_of_parts - 1) *. part_y_padding)
 
-let shift_elements_y (dy : float) (elems : Layout_Tree.element list) :
-    Layout_Tree.element list =
-  let sp (p : Layout_Tree.position) = { p with y = p.y +. dy } in
+let shift_elements_y (dy : float) (elems : element list) : element list =
+  let sp (p : position) = { p with y = p.y +. dy } in
   List.filter_map
     (function
-      | Layout_Tree.LSymbol s ->
-          Some
-            (Layout_Tree.LSymbol { s with baseline_left = sp s.baseline_left })
-      | Layout_Tree.LBarline b ->
-          Some
-            (Layout_Tree.LBarline { b with baseline_mid = sp b.baseline_mid })
-      | Layout_Tree.LInstrument i ->
-          Some
-            (Layout_Tree.LInstrument
-               { i with baseline_right = sp i.baseline_right })
-      | Layout_Tree.LBarno n ->
-          Some
-            (Layout_Tree.LBarno { n with baseline_left = sp n.baseline_left })
-      | Layout_Tree.LPageNo _ -> None
-      | Layout_Tree.LTitle _ -> None)
+      | LSymbol s ->
+          Some (LSymbol { s with baseline_left = sp s.baseline_left })
+      | LBarline b ->
+          Some (LBarline { b with baseline_mid = sp b.baseline_mid })
+      | LInstrument i ->
+          Some (LInstrument { i with baseline_right = sp i.baseline_right })
+      | LBarno n -> Some (LBarno { n with baseline_left = sp n.baseline_left })
+      | LPageNo _ -> None
+      | LTitle _ -> None)
     elems
 
 type pre_line = {
-  pl_elements : Layout_Tree.element list;
+  pl_elements : element list;
   pl_width : float;
   pl_block_h : float;
 }
 
 type pager = {
-  done_pages : Layout_Tree.t;
-  cur_elements : Layout_Tree.element list; (*reversed order*)
+  done_pages : t;
+  cur_elements : element list; (*reversed order*)
   cur_width : float;
   cur_y : float;
 }
@@ -280,20 +307,19 @@ let make_pager (start_y : float) : pager =
   { done_pages = []; cur_elements = []; cur_width = 0.; cur_y = start_y }
 
 let layout_page_no (page_no : int) (page_width : float) (page_height : float) :
-    Layout_Tree.element =
+    element =
   let text = string_of_int page_no in
   let x = page_width /. 2. in
   let y = page_height -. (bottom_margin_y /. 2.) in
-  Layout_Tree.LPageNo { text; baseline_mid = { x; y } }
+  LPageNo { text; baseline_mid = { x; y } }
 
-let layout_title (title : string) (page_width : float) :
-    Layout_Tree.element * float =
+let layout_title (title : string) (page_width : float) : element * float =
   let x = page_width /. 2. in
   let y = top_margin_y in
-  let elem = Layout_Tree.LTitle { text = title; baseline_mid = { x; y } } in
+  let elem = LTitle { text = title; baseline_mid = { x; y } } in
   (elem, y +. title_size +. title_padding_bottom)
 
-let layout (score : Score.t) (config : Config.config) : Layout_Tree.t =
+let layout (score : Score.t) (config : Config.config) : t =
   let longest_inst =
     List.fold_left
       (fun acc inst -> max acc (String.length inst))
@@ -307,16 +333,14 @@ let layout (score : Score.t) (config : Config.config) : Layout_Tree.t =
   | [] ->
       [
         {
-          Layout_Tree.width = left_margin_x +. right_margin_x;
+          width = left_margin_x +. right_margin_x;
           height = (left_margin_x +. right_margin_x) *. Float.sqrt 2.;
           content = [];
         };
       ]
   | _ ->
       (*lay out every line to find max width*)
-      let dummy_pos =
-        { Layout_Tree.x = left_margin_x +. inst_margin; y = 0. }
-      in
+      let dummy_pos = { x = left_margin_x +. inst_margin; y = 0. } in
       let pre_lines =
         List.map
           (fun (line : Score.line) ->
@@ -345,7 +369,7 @@ let layout (score : Score.t) (config : Config.config) : Layout_Tree.t =
             (Some elem, start_y)
       in
 
-      let add_page_no (page_no : int) (elems : Layout_Tree.element list) =
+      let add_page_no (page_no : int) (elems : element list) =
         layout_page_no page_no page_width page_height :: elems
       in
 
@@ -365,7 +389,7 @@ let layout (score : Score.t) (config : Config.config) : Layout_Tree.t =
                 | Some t -> t :: final_elems
               else final_elems
             in
-            let last : Layout_Tree.page =
+            let last : page =
               {
                 width = page_width;
                 height = page_height;
@@ -387,7 +411,7 @@ let layout (score : Score.t) (config : Config.config) : Layout_Tree.t =
                     | Some t -> t :: close_elems
                   else close_elems
                 in
-                let page : Layout_Tree.page =
+                let page : page =
                   {
                     width = page_width;
                     height = page_height;

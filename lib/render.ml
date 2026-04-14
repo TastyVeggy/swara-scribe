@@ -1,5 +1,4 @@
 open Cairo
-open Ir
 
 let note_size = Layout.note_size
 let dot_radius = 0.003 *. Layout.scale_y
@@ -9,7 +8,7 @@ let bar_no_text_size = Layout.text_size *. 0.7
 let grey = (0.75, 0.75, 0.75)
 let black = (0., 0., 0.)
 
-type position = Layout_Tree.position
+type position = Layout.position
 
 let set_colour (cr : Cairo.context) (is_emphasised : bool) =
   let r, g, b = if is_emphasised then black else grey in
@@ -31,7 +30,7 @@ let draw_text_at_baseline (cr : Cairo.context) (s : string) (pos : position) =
   move_to cr x pos.y;
   show_text cr s
 
-let draw_music_symbol (cr : Cairo.context) (s : Layout_Tree.symbol) : unit =
+let draw_music_symbol (cr : Cairo.context) (s : Layout.symbol) : unit =
   set_colour cr s.is_emphasised;
   match s.symbol with
   | Swaram (c, octave) -> (
@@ -39,13 +38,13 @@ let draw_music_symbol (cr : Cairo.context) (s : Layout_Tree.symbol) : unit =
       set_font_size cr note_size;
       let cx = note_centre_x s.baseline_left in
       match octave with
-      | Some Symbol.Higher_octave ->
+      | Some Types.Symbol.Higher_octave ->
           let dot_y =
             s.baseline_left.y -. Layout.note_ascent -. top_dot_offset
           in
           arc cr cx dot_y ~r:dot_radius ~a1:0. ~a2:(2. *. Float.pi);
           fill cr
-      | Some Symbol.Lower_octave ->
+      | Some Types.Symbol.Lower_octave ->
           let dot_y = s.baseline_left.y +. bottom_dot_offset in
           arc cr cx dot_y ~r:dot_radius ~a1:0. ~a2:(2. *. Float.pi);
           fill cr
@@ -54,7 +53,7 @@ let draw_music_symbol (cr : Cairo.context) (s : Layout_Tree.symbol) : unit =
   | Sustain -> draw_music_symbol_at_baseline cr '-' s.baseline_left
   | Lyrics t -> draw_text_at_baseline cr t s.baseline_left
 
-let draw_barline (cr : Cairo.context) (barline : Layout_Tree.barline) =
+let draw_barline (cr : Cairo.context) (barline : Layout.barline) =
   set_colour cr barline.is_emphasised;
   let y1 = barline.baseline_mid.y -. (barline.height /. 2.) in
   let y2 = barline.baseline_mid.y +. (barline.height /. 2.) in
@@ -62,8 +61,7 @@ let draw_barline (cr : Cairo.context) (barline : Layout_Tree.barline) =
   line_to cr barline.baseline_mid.x y2;
   stroke cr
 
-let draw_instrumentation (cr : Cairo.context)
-    (instrument : Layout_Tree.instrument) =
+let draw_instrumentation (cr : Cairo.context) (instrument : Layout.instrument) =
   set_colour cr instrument.is_emphasised;
   set_font_size cr Layout.text_size;
   let ext = text_extents cr instrument.text in
@@ -71,7 +69,7 @@ let draw_instrumentation (cr : Cairo.context)
   move_to cr x instrument.baseline_right.y;
   show_text cr instrument.text
 
-let draw_bar_no (cr : Cairo.context) (bar_no_elem : Layout_Tree.bar_no) =
+let draw_bar_no (cr : Cairo.context) (bar_no_elem : Layout.bar_no) =
   set_source_rgb cr 0. 0. 0.;
   set_font_size cr bar_no_text_size;
   let ext = text_extents cr bar_no_elem.text in
@@ -79,7 +77,7 @@ let draw_bar_no (cr : Cairo.context) (bar_no_elem : Layout_Tree.bar_no) =
   move_to cr x bar_no_elem.baseline_left.y;
   show_text cr bar_no_elem.text
 
-let draw_title (cr : Cairo.context) (t : Layout_Tree.title) =
+let draw_title (cr : Cairo.context) (t : Layout.title) =
   set_source_rgb cr 0. 0. 0.;
   set_font_size cr Layout.title_size;
   let ext = text_extents cr t.text in
@@ -87,7 +85,7 @@ let draw_title (cr : Cairo.context) (t : Layout_Tree.title) =
   move_to cr x t.baseline_mid.y;
   show_text cr t.text
 
-let draw_page_no (cr : Cairo.context) (p : Layout_Tree.page_no) =
+let draw_page_no (cr : Cairo.context) (p : Layout.page_no) =
   set_source_rgb cr 0. 0. 0.;
   set_font_size cr Layout.page_no_size;
   let ext = text_extents cr p.text in
@@ -95,8 +93,7 @@ let draw_page_no (cr : Cairo.context) (p : Layout_Tree.page_no) =
   move_to cr x p.baseline_mid.y;
   show_text cr p.text
 
-let rec draw_score (cr : Cairo.context) : Layout_Tree.element list -> unit =
-  function
+let rec draw_score (cr : Cairo.context) : Layout.element list -> unit = function
   | [] -> ()
   | LSymbol s :: rest ->
       draw_music_symbol cr s;
@@ -117,7 +114,7 @@ let rec draw_score (cr : Cairo.context) : Layout_Tree.element list -> unit =
       draw_page_no cr p;
       draw_score cr rest
 
-let generate_score_pdf (filename : string) (pages : Layout_Tree.t)
+let generate_score_pdf (filename : string) (pages : Layout.t)
     (config : Config.config) =
   match pages with
   | [] -> ()
@@ -126,7 +123,7 @@ let generate_score_pdf (filename : string) (pages : Layout_Tree.t)
       let cr = Cairo.create surface in
       select_font_face cr config.font;
       List.iter
-        (fun (page : Layout_Tree.page) ->
+        (fun (page : Layout.page) ->
           Cairo.PDF.set_size surface ~w:page.width ~h:page.height;
           set_source_rgb cr 1. 1. 1.;
           paint cr;
