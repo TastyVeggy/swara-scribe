@@ -4,7 +4,7 @@ open Ir
 let note_size = Layout.note_size
 let dot_radius = 0.003 *. Layout.scale_y
 let bottom_dot_offset = 0.013 *. Layout.scale_y
-let top_dot_offset = -0.005 *. Layout.scale_y
+let top_dot_offset = 0.01 *. Layout.scale_y
 let bar_no_text_size = Layout.text_size *. 0.7
 let grey = (0.75, 0.75, 0.75)
 let black = (0., 0., 0.)

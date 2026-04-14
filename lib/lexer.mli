@@ -10,11 +10,7 @@ module Token : sig
     | FULL_STOP (* rest *)
     | BARLINE (* barline *)
     | NEWLINE (* new line *)
-    | LSQUAREBRACKET
-    | RSQUAREBRACKET
     | INSTRUMENT_TEXT of string
-    | LCURLYBRACKET
-    | RCURLYBRACKET
     | LYRICS of string
     | EOF
 

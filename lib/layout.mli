@@ -1,4 +1,4 @@
-val layout : Ir.Ast.t -> Config.config -> Ir.Layout_Tree.t
+val layout : Ir.Score.t -> Config.config -> Ir.Layout_Tree.t
 val scale_y : float
 val scale_x : float
 val note_size : float

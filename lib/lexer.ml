@@ -10,11 +10,7 @@ module Token = struct
     | FULL_STOP (* rest *)
     | BARLINE (* barline *)
     | NEWLINE (* new line *)
-    | LSQUAREBRACKET (* notating insrument *)
-    | RSQUAREBRACKET (* notating instrument *)
     | INSTRUMENT_TEXT of string
-    | LCURLYBRACKET (* matra marking for lyrics*)
-    | RCURLYBRACKET (* matra marking for lyrics*)
     | LYRICS of string
     | EOF
 
@@ -28,11 +24,7 @@ module Token = struct
     | FULL_STOP -> Format.fprintf fmt "FULL_STOP"
     | BARLINE -> Format.fprintf fmt "BAR"
     | NEWLINE -> Format.fprintf fmt "NEWLINE"
-    | LSQUAREBRACKET -> Format.fprintf fmt "LSQUAREBRACKET"
-    | RSQUAREBRACKET -> Format.fprintf fmt "RSQUAREBRACKET"
     | INSTRUMENT_TEXT s -> Format.fprintf fmt "INSTRUMENT_TEXT (%s)" s
-    | LCURLYBRACKET -> Format.fprintf fmt "LCURLYBRACKET"
-    | RCURLYBRACKET -> Format.fprintf fmt "RCURLYBRACKET"
     | LYRICS s -> Format.fprintf fmt "LYRICS (%s)" s
     | EOF -> Format.fprintf fmt "EOF"
 end

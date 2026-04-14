@@ -1,5 +1,8 @@
 (library
  (name swara_scribe)
- (libraries cairo2)
+ (libraries cairo2 menhirLib)
  (preprocess
   (pps ppx_deriving.show)))
+
+(menhir
+ (modules parser))

@@ -56,18 +56,20 @@ let part_emphasised (main_instrument : string option)
 (* extract the ordered list of instrument names from the first Matra in the
    line. Assumes ast is such taht every matra in a line has the same parts in
 the same order, so the first one is representative*)
-let line_part_instruments (content : Ast.element list) : string option list =
-  match List.find_opt (function Ast.Matra _ -> true | _ -> false) content with
-  | Some (Ast.Matra matra) ->
+let line_part_instruments (content : Score.element list) : string option list =
+  match
+    List.find_opt (function Score.Matra _ -> true | _ -> false) content
+  with
+  | Some (Score.Matra matra) ->
       List.map (fun (mp : Ir.matra_part) -> mp.instrument) matra
   | _ -> []
 
-let layout_instrumentation (pos : position) (elems : Ast.element list)
+let layout_instrumentation (pos : position) (elems : Score.element list)
     (main_instrument : string option) : Layout_Tree.element list =
   let rec layout_instrumentation_ = function
     | [] -> []
-    | Ast.Barline :: rest -> layout_instrumentation_ rest
-    | Ast.Matra matra :: _ ->
+    | Score.Barline :: rest -> layout_instrumentation_ rest
+    | Score.Matra matra :: _ ->
         let rec loop acc inner_y = function
           | [] -> List.rev acc
           | (matra_part : Ir.matra_part) :: rest ->
@@ -128,8 +130,9 @@ let layout_matra_part (pos : position) (matra_width : float)
   layout_matra_part_ [] start_x matra_part.symbols
 
 let layout_element (pos : position) (part_instruments : string option list)
-    (main_instrument : string option) : Ast.element -> layout_result = function
-  | Ast.Barline ->
+    (main_instrument : string option) : Score.element -> layout_result =
+  function
+  | Score.Barline ->
       (* x: shift right by half the right-side padding so the barline sits
          visually centred in the gap between the two matras *)
       let barline_x = pos.x +. (barline_x_padding /. 2.) in
@@ -153,7 +156,7 @@ let layout_element (pos : position) (part_instruments : string option list)
       in
       let elems, height = layout_barlines [] pos.y part_instruments in
       { elements = elems; width = 0.; height }
-  | Ast.Matra matra ->
+  | Score.Matra matra ->
       let calc_width ~offset = function
         | [ Symbol.Lyrics s ] ->
             float_of_int (max (String.length s + offset) 0) *. text_width
@@ -189,11 +192,11 @@ let layout_element (pos : position) (part_instruments : string option list)
       let elems, height = layout_matra [] pos.y matra in
       { elements = elems; width = advance_width; height }
 
-let find_x_padding (left : Ast.element) (right : Ast.element) : float =
-  if left = Ast.Barline || right = Ast.Barline then barline_x_padding
+let find_x_padding (left : Score.element) (right : Score.element) : float =
+  if left = Score.Barline || right = Score.Barline then barline_x_padding
   else matra_x_padding
 
-let layout_line (pos : position) (line : Ast.line)
+let layout_line (pos : position) (line : Score.line)
     (main_instrument : string option) (show_bar_no : bool) =
   let bar_no_elem = layout_bar_number pos line.starting_bar_no in
   let instrument_elems =
@@ -290,7 +293,7 @@ let layout_title (title : string) (page_width : float) :
   let elem = Layout_Tree.LTitle { text = title; baseline_mid = { x; y } } in
   (elem, y +. title_size +. title_padding_bottom)
 
-let layout (score : Ast.t) (config : Config.config) : Layout_Tree.t =
+let layout (score : Score.t) (config : Config.config) : Layout_Tree.t =
   let longest_inst =
     List.fold_left
       (fun acc inst -> max acc (String.length inst))
@@ -316,7 +319,7 @@ let layout (score : Ast.t) (config : Config.config) : Layout_Tree.t =
       in
       let pre_lines =
         List.map
-          (fun (line : Ast.line) ->
+          (fun (line : Score.line) ->
             let lr =
               layout_line dummy_pos line config.main_instrument
                 config.show_bar_no

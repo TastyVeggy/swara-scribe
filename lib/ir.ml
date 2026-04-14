@@ -8,19 +8,24 @@ end
 type matra_part = { symbols : Symbol.t list; instrument : string option }
 [@@deriving show]
 
-module Cst = struct
-  type element = Matra_Part of matra_part | Barline | Newline | Next_Part
+module Ast = struct
+  type element =
+    | Matra_Part of matra_part
+    | Instrument of string
+    | Barline
+    | Newline
+    | Next_Part
   [@@deriving show]
 
   type t = element list [@@deriving show]
 end
 
 module Elab = struct
-  type part = Cst.element list [@@deriving show]
+  type part = Ast.element list [@@deriving show]
   type line = part list [@@deriving show]
 end
 
-module Ast = struct
+module Score = struct
   type matra = matra_part list [@@deriving show]
   type element = Matra of matra | Barline [@@deriving show]
 
