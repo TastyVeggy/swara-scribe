@@ -19,15 +19,17 @@ dune install
 ```
 
 ### Usage
-Note that if the following commands do not work, replace `scribe` with `dune exec scribe --` within the commands
+Note that if the following command do not work, replace `scribe` with `dune exec scribe --` within the commands
 
 ```
-Usage: scribe [--main-instrument <name>] [--show-bar-no] <file>
-  --main-instrument  <name>  Highlight this instrument part (others rendered in grey)
-  --show-bar-no  Show bar numbers (default: off)
-  --font <name> Font for score
-  --title <name> Title of the piece
+scribe [OPTIONS] <file>
 ```
+
+**Options**
+* `--main-instrument <name>`:  Highlight this instrument part (others rendered in grey)
+* `--show-bar-no`:  Show bar numbers (default: off)
+* `--font <name>`: Font for score (default: system)
+* `--title <name>`: Title of the piece (default: none)
 
 #### Example
 ```
@@ -80,12 +82,3 @@ Rendered snippet via `scribe example/test.txt --main-instrument "Violin" --show-
 
 ![Rendered snippet](./example/test.png)
 
-
-## Future plans
-* [ ] Ability to choose to only render one instrument part
-    * [ ] Ability to mark important parts within each line, then when in 'single-instrument' mode there will be an option to display these important parts
-    * [X] Make the other parts or other important parts differentiated from the selected instrument part such as through highlighting, sizing (most complex) or coloring of text
-* [X] Lyrics for vocal
-* [ ] Gamakas
-* [ ] Option to set bar number for line (to allow skipping)
-* [ ] Allow for text at the top of each matra and top left of each line
