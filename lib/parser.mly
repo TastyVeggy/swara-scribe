@@ -18,27 +18,52 @@ score:
 
 elements:
   | { [] }
-  | e = element rest = elements { e @ rest }
+  | WHITESPACE rest = elements
+      { rest }
+  | e = newline_run rest = elements_after_newlines
+      { e :: rest }
+  | mp = matra_part rest = elements_after_matra
+      { Matra_Part { symbols = List.rev mp; instrument = None } :: rest }
+  | e = element rest = elements
+      { e :: rest }
+
+elements_after_newlines:
+  | { [] }
+  | WHITESPACE rest = elements
+      { rest }
+  | mp = matra_part rest = elements_after_matra
+      { Matra_Part { symbols = List.rev mp; instrument = None } :: rest }
+  | e = element rest = elements
+      { e :: rest }
+
+elements_after_matra:
+  | { [] }
+  | WHITESPACE rest = elements
+      { rest }
+  | e = newline_run rest = elements_after_newlines
+      { e :: rest }
+  | e = element rest = elements
+      { e :: rest }
+
+newline_run:
+  | NEWLINE { Next_Part }
+  | NEWLINE NEWLINE trailing_newlines { Newline }
+
+trailing_newlines:
+  | { () }
+  | NEWLINE trailing_newlines { () }
 
 element:
   | i = INSTRUMENT_TEXT
-      { [ Instrument i ] }
-  | NEWLINE NEWLINE
-      { [ Newline ] }
-  | NEWLINE
-      { [ Next_Part ] }
+      { Instrument i }
   | BARLINE
-      { [ Barline ] }
-  | WHITESPACE
-      { [] }
+      { Barline }
   | s = LYRICS
-      { [ Matra_Part { symbols = [ Symbol.Lyrics s ]; instrument = None } ] }
-  | mp = matra_part
-      { [ Matra_Part { symbols = mp; instrument = None } ] }
+      { Matra_Part { symbols = [ Symbol.Lyrics s ]; instrument = None } }
 
 matra_part:
   | s = symbol { [ s ] }
-  | s = symbol rest = matra_part { s :: rest }
+  | mp = matra_part s = symbol { s :: mp }
 
 symbol:
   | c = LETTER APOSTROPHE { Symbol.Swaram (c, Some Symbol.Higher_octave) }

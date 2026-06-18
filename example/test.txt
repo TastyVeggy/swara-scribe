@@ -3,7 +3,7 @@
 [Male Lyrics] . . . . | {Ja} {gat} {man} {ga} | {lam} . . . | {Vish} {wa} {man} {ga}
 [Male Vocal] . . . . | G'.S'. S'... ..S'. ..D. | S'... . . . | G.P. P.S'n ...D .P..
 [Keys] D... . . . | G'... SS.. ..n. ..D. | S.G. P.G. S.G. P.G. | G... P.S. n..D .P..
-[Violin] G'... S'S'.. ..n. ..D. | S'... . . . | G... P.S. n..D .P.. | P... . . .
+[Violin] G'... S'S'.. ..n. ..D. | S'... . . . | G... P.S'. n..D .P.. | P... . . .
 [Veena] .SS. .SS. .SS. .SS. | .SS. .SS. .SS. .SS. | .SS. .SS. .SS. .SS. | .SS. .SS. .SS. .SS.
 
 [Male Lyrics] {lam} {Vishwam} . . | {Mata} {ram} . .
